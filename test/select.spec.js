@@ -153,6 +153,7 @@ describe('ui-select tests', function() {
       if (attrs.theme !== undefined) { attrsHtml += ' theme="' + attrs.theme + '"'; }
       if (attrs.tabindex !== undefined) { attrsHtml += ' tabindex="' + attrs.tabindex + '"'; }
       if (attrs.tagging !== undefined) { attrsHtml += ' tagging="' + attrs.tagging + '"'; }
+      if (attrs.taggingEquals !== undefined) { attrsHtml += ' tagging-equals="' + attrs.taggingEquals + '"'; }
       if (attrs.taggingTokens !== undefined) { attrsHtml += ' tagging-tokens="' + attrs.taggingTokens + '"'; }
       if (attrs.title !== undefined) { attrsHtml += ' title="' + attrs.title + '"'; }
       if (attrs.appendToBody !== undefined) { attrsHtml += ' append-to-body="' + attrs.appendToBody + '"'; }
@@ -1753,6 +1754,7 @@ describe('ui-select tests', function() {
             if (attrs.tabindex !== undefined) { attrsHtml += ' tabindex="' + attrs.tabindex + '"'; }
             if (attrs.closeOnSelect !== undefined) { attrsHtml += ' close-on-select="' + attrs.closeOnSelect + '"'; }
             if (attrs.tagging !== undefined) { attrsHtml += ' tagging="' + attrs.tagging + '"'; }
+            if (attrs.taggingEquals !== undefined) { attrsHtml += ' tagging-equals="' + attrs.taggingEquals + '"'; }
             if (attrs.taggingTokens !== undefined) { attrsHtml += ' tagging-tokens="' + attrs.taggingTokens + '"'; }
             if (attrs.taggingLabel !== undefined) { attrsHtml += ' tagging-label="' + attrs.taggingLabel + '"'; }
             if (attrs.inputId !== undefined) { attrsHtml += ' input-id="' + attrs.inputId + '"'; }
@@ -2880,4 +2882,114 @@ describe('ui-select tests', function() {
     });
   });
 
+  describe('single selection with tagging function and tagging equals', function() {
+   it('should preserve the model if tagging is enabled on select single', function() {
+		scope.selection.selected = "I am not on the list of choices";
+		var el = createUiSelect({tagging: ''});
+		scope.$digest();
+		expect(scope.selection.selected).toEqual("I am not on the list of choices");
+    });
+
+  it('should not call tagging function needlessly in single selection', function() {
+		scope.slowTaggingFunc = function (name) {
+			return {name: name};
+		};
+		spyOn(scope, 'slowTaggingFunc').and.callThrough();
+
+		var el = createUiSelect({tagging: 'slowTaggingFunc'});
+		scope.$digest();
+
+		openDropdown(el);
+
+		showChoicesForSearch(el, 'Foo');
+		expect(el.find('.ui-select-choices-row-inner').size()).toBe(6);
+
+		showChoicesForSearch(el, 'a');
+		expect(el.find('.ui-select-choices-row-inner').size()).toBe(9);
+
+		expect(scope.slowTaggingFunc.calls.count()).toBe(2);
+		expect(scope.slowTaggingFunc.calls.count()).not.toBe(15);
+    });
+
+	it('should allow decline tags when tagging function returns null in single select mode', function() {
+		scope.taggingFunc = function (name) {
+			if (name == 'idontexist') return null;
+			return {
+				name: name,
+				email: name + '@email.com',
+				group: 'Foo',
+				age: 12
+			};
+		};
+		var el = createUiSelect({tagging: 'taggingFunc'});
+		scope.$digest();
+
+		openDropdown(el);
+		showChoicesForSearch(el, 'amalie');
+		expect(el.find('.ui-select-choices-row-inner').size()).toBe(2);
+		expect(el.scope().$select.items[0]).toEqual(jasmine.objectContaining({name: 'amalie', isTag: true}));
+		expect(el.scope().$select.items[1]).toEqual(jasmine.objectContaining({name: 'Amalie'}));
+
+		showChoicesForSearch(el, 'idoexist');
+		expect(el.find('.ui-select-choices-row-inner').size()).toBe(1);
+		expect(el.find('.ui-select-choices-row-inner').is(':contains(idoexist@email.com)')).toBeTruthy();
+
+		showChoicesForSearch(el, 'idontexist');
+		expect(el.find('.ui-select-choices-row-inner').size()).toBe(0);
+    });
+
+	it('should allow creating tag in single select mode with tagging and group-by enabled', function() {
+      scope.taggingFunc = function (name) {
+        return {
+          name: name,
+          email: name + '@email.com',
+          group: 'Foo',
+          age: 12
+        };
+      };
+
+	  var el = createUiSelect({tagging: 'taggingFunc', groupBy: 'age'});
+	  scope.$digest();
+
+	  openDropdown(el);
+      showChoicesForSearch(el, 'amal');
+      expect(el.find('.ui-select-choices-row-inner').size()).toBe(2);
+      expect(el.scope().$select.items[0]).toEqual(jasmine.objectContaining({name: 'amal', email: 'amal@email.com', isTag: true}));
+      expect(el.scope().$select.items[1]).toEqual(jasmine.objectContaining({name: 'Amalie', email: 'amalie@email.com'}));
+    });
+
+	it('should allow creating tag in single select mode with tagging-equals', function() {
+      scope.taggingFunc = function (name) {
+        return {
+		  name: name,
+          email: (name? name.toLowerCase() : '') + '@email.com',
+          group: 'Foo',
+          age: 12,
+		  createByTag: true
+        };
+      };
+
+	  scope.taggingEqualsFunc = function (item1, item2) {
+        return item1 && item2
+			&& item1.name === item2.name
+			&& item1.email === item2.email
+			&& item1.name === item2.name
+			&& item1.group === item2.group
+			&& item1.age === item2.age;
+      };
+
+      var el = createUiSelect({tagging: 'taggingFunc', taggingEquals: 'taggingEqualsFunc', trackBy: '$index'});
+	  scope.$digest();
+
+	  openDropdown(el);
+      showChoicesForSearch(el, 'amal');
+      expect(el.find('.ui-select-choices-row-inner').size()).toBe(2);
+      expect(el.scope().$select.items[0]).toEqual(jasmine.objectContaining({name: 'amal', email: 'amal@email.com', isTag: true}));
+      expect(el.scope().$select.items[1]).toEqual(jasmine.objectContaining({name: 'Amalie', email: 'amalie@email.com'}));
+
+	  showChoicesForSearch(el, 'Amalie');
+      expect(el.find('.ui-select-choices-row-inner').size()).toBe(1);
+      expect(el.scope().$select.items[0]).toEqual(jasmine.objectContaining({name: 'Amalie', email: 'amalie@email.com'}));
+    });
+  });
 });

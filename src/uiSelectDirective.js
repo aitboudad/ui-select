@@ -113,11 +113,27 @@ uis.directive('uiSelect',
           {
             // $eval() is needed otherwise we get a string instead of a boolean
             var taggingEval = scope.$eval(attrs.tagging);
-            $select.tagging = {isActivated: true, fct: taggingEval !== true ? taggingEval : undefined};
+            $select.tagging.isActivated = true;
+			$select.tagging.fct = taggingEval !== true ? taggingEval : undefined;
           }
           else
           {
-            $select.tagging = {isActivated: false, fct: undefined};
+            $select.tagging.isActivated = false;
+			$select.tagging.fct = undefined;
+			$select.tagging.equals = angular.equals;
+          }
+        });
+		
+		attrs.$observe('taggingEquals', function() {
+          if(attrs.taggingEquals !== undefined)
+          {
+            // $eval() is needed otherwise we get a string instead of a boolean
+            var taggingEqualsEval = scope.$eval(attrs.taggingEquals);
+            $select.tagging.equals = taggingEqualsEval !== true ? taggingEqualsEval : angular.equals;
+          }
+		  else
+          {
+            $select.tagging.equals = angular.equals;
           }
         });
 
