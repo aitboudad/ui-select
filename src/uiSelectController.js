@@ -755,6 +755,24 @@ uis.controller('uiSelectCtrl',
         }
       });
 
+  ctrl.searchInput.on('blur', function(e) {
+     var data = ctrl.searchInput.val();
+     if (ctrl.taggingTokens.isActivated && data && data.length > 0) {
+         e.preventDefault();
+         e.stopPropagation();
+
+         $timeout(function() {
+           ctrl.searchInput.triggerHandler('tagged');
+           var newItem = ctrl.search.trim();
+           if ( ctrl.tagging.fct ) {
+             newItem = ctrl.tagging.fct( newItem );
+           }
+           if (newItem) ctrl.select(newItem, true);
+         });
+
+     }
+   });
+
   ctrl.searchInput.on('keydown', function(e) {
 
     var key = e.which;
